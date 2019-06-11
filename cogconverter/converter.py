@@ -239,8 +239,8 @@ def convert2blocksize(ds, path_output):
 
     # # Building overviews of output dataset, this will remove COG nature of TIF
     print('Processing: Building overviews of output dataset')
-    addo = pyramid.pyramid(dataset)
-    addo.gdal_addo()
+    # addo = pyramid.pyramid(dataset)
+    # addo.gdal_addo()
     return dataset
 
 
