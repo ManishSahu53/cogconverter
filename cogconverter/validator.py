@@ -6,7 +6,6 @@ import sys
 
 import osr
 import json
-import utm
 import time
 import datetime
 

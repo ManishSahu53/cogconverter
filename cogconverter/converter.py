@@ -1,5 +1,12 @@
-import osgeo
-import gdal
+try:
+    import osgeo
+except:
+    raise('osgeo not found. You can install using - conda install gdal. Else use docker file given at repo')
+try:    
+    import gdal
+except:
+    raise('gdal not found. You can install using - conda install gdal. Else use docker file given at repo')
+
 import numpy as np
 import os
 import sys
@@ -165,7 +172,7 @@ def checkdirs(path):
 
 
 def convert2blocksize(ds, path_output):
-    '''sinstance(ds, osgeo.gdal.Dataset)
+    '''
     path_input is input file name
     path_output is output file name
     '''
