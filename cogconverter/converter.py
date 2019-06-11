@@ -266,7 +266,7 @@ if __name__ == '__main__':
     ds = None
     try:
         print('Flushing')
-        ds.FlushCache()
+        ds1.FlushCache()
         ds1 = None
         print('Success: Completed')
     except Exception as e:

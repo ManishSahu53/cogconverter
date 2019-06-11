@@ -40,7 +40,7 @@ ADD cogconverter/validator.py cogconverter/converter.py cogconverter/src /
 # Install dependencies for tiling
 RUN pip3 install -r requirements.txt
 RUN python3 setup.py build
-RUN python setup.py instal
+RUN python setup.py install
     
 ENV PYTHONUNBUFFERED = '1'
 
