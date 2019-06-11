@@ -28,26 +28,17 @@ RUN apt-get -y install python3-gdal
 RUN apt-get -y install zip
 
 # Copy function to a path
-RUN mkdir -p /var/cog_converter
-COPY . /var/cog_converter/
+RUN mkdir -p /var/cogconverter
+COPY . /var/cogconverter/
 
 # Work Directory
-WORKDIR /var/cog_converter/
+WORKDIR /var/cogconverter/
 
 # Build context
-ADD validator.py converter.py src /
+ADD cogconverter/validator.py cogconverter/converter.py cogconverter/src /
 
 # Install dependencies for tiling
-RUN pip3 install argparse && \
-    pip3 install numpy && \
-    pip3 install pillow && \
-    pip3 install requests_toolbelt && \
-    pip3 install boto3 && \
-    pip3 install requests && \
-    pip3 install daymark && \
-    pip3 install utm && \
-    pip3 install tqdm && \
-    pip3 install --upgrade awscli
+RUN pip3 install -r requirements.txt
     
 ENV PYTHONUNBUFFERED = '1'
 

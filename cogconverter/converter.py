@@ -5,8 +5,8 @@ import os
 import sys
 from tqdm import tqdm
 import argparse
-import config.config as default_config
-
+from cogconverter.config import default_config
+from cogconverter.src import pyramid
 
 """
 -co TILED=YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co COPY_SRC_OVERVIEWS=YES \
@@ -186,32 +186,25 @@ def convert2blocksize(ds, path_output):
     print('Processing: Building overviews')
     r.gdal_addo()
 
-    # Checking alpha bands
-    for i in range(r.num_band):
-        band = r.ds.GetRasterBand(i+1)
-        band_type = band.GetColorInterpretation()
-
-        if int(band_type) == 6:
-            print('alpha present')
-        else:
-            print('alpha band not present')
-
-        # Creating tifs
-        print('Processing: Creating tiff dataset')
-        driver = gdal.GetDriverByName('Gtiff')
+    # Creating tifs
+    print('Processing: Creating tiff dataset')
+    driver = gdal.GetDriverByName('Gtiff')
+    try:
         dataset = driver.CreateCopy(path_output,
                                     r.ds, 0,
                                     ['NUM_THREADS=ALL_CPUS',
-                                     'COMPRESS=%s' % (r.compression),
-                                     'BIGTIFF=YES',
-                                     'TILED=YES',
-                                     'BLOCKXSIZE=%d' % (blocksize),
-                                     'BLOCKYSIZE=%d' % (blocksize),
-                                     'COPY_SRC_OVERVIEWS=YES'])
+                                    'COMPRESS=%s' % (r.compression),
+                                    'BIGTIFF=YES',
+                                    'TILED=YES',
+                                    'BLOCKXSIZE=%d' % (blocksize),
+                                    'BLOCKYSIZE=%d' % (blocksize),
+                                    'COPY_SRC_OVERVIEWS=YES'])
+    except Exception as e:
+        raise('Error: Unable to process %s' % e)
 
     return dataset
     # driver = gdal.GetDriverByName('Gtiff')
-    # dataset = driver.Create(r.path_blockoutput,
+    # dataset = driver.Create(path_output,
     #                         r.col, r.row, r.num_band,
     #                         r.dtype_conversion(), ['NUM_THREADS=ALL_CPUS',
     #                                                'COMPRESS=%s' % (
@@ -226,21 +219,22 @@ def convert2blocksize(ds, path_output):
     # dataset.SetGeoTransform(r.geotransform)
     # dataset.SetProjection(r.geoprojection)
 
-    ''' 
-    No need to copy data again. Since we are using CreateCopy() function, it will automatically copy all the datasets
-    '''
+    # ''' 
+    # No need to copy data again. Since we are using CreateCopy() function, it will automatically copy all the datasets
+    # '''
 
     # # Copying data from input raster to output raster blockwise
     # write_blockwise(input_raster=r, output_raster=dataset)
 
-    '''
-    No Need to build overviews of output raster. It will remove COG properties from TIF
-    '''
+    # '''
+    # No Need to build overviews of output raster. It will remove COG properties from TIF
+    # '''
 
-    # # Building overviews of output dataset, this will remove COG nature of TIF
+    # # # Building overviews of output dataset, this will remove COG nature of TIF
     # print('Processing: Building overviews of output dataset')
-    # gdal_addo(r, dataset)
-    # dataset.FlushCache()
+    # addo = pyramid.pyramid(dataset)
+    # addo.gdal_addo()
+    # return dataset
 
 
 if __name__ == '__main__':
@@ -261,11 +255,13 @@ if __name__ == '__main__':
 
     # Reading raster
     ds = gdal.Open(path_input, 1)
-
-    ds = convert2blocksize(ds, path_output)
+    ds1 = convert2blocksize(ds, path_output)
+    ds = None
     try:
+        print('Flushing')
         ds.FlushCache()
-        print('Succes: Completed')
+        ds1 = None
+        print('Success: Completed')
     except Exception as e:
         raise('Error: Unable to save to %s %s'% (path_output, e))
 

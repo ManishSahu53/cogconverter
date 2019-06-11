@@ -11,20 +11,18 @@ Following are the Use-Cases kept in mind while designing:
 2. Reading data block by block, so can be run of even low memory server
 3. Supports Multiband TIFs
 4. 3-4 Band uint8 TIF (Orthomosaic)
-5. Consideration of Alpha band For transparency
-6. Building pyramids if not available (This will improve rendering
+5. Building pyramids if not available (This will improve rendering
    speed)
-7. Compressing data
-8. Compressing to the same compression format as the original TIF. If
+6. Compressing data
+7. Compressing to the same compression format as the original TIF. If
    original TIF was not compressed then LZW lossless compression is used
    to compress.
-9. Tile whole into 256x256 smaller blocks internally
+8. Tile whole into 256x256 smaller blocks internally
 
 Validator.py
 ~~~~~~~~~~~~
 
-It will validate tiff for COG format. If tif is already is in COG format
-then it will skip that file else it will convert it to COG format.
+It will validate tiff for COG format.
 
 Converter.py
 ~~~~~~~~~~~~
@@ -35,3 +33,22 @@ To-Do
 -----
 
 1. Multi-core processing for faster results.
+
+How to Run
+----------
+
+1. Inside python console
+
+::
+
+   import cogconverter as cog
+   import gdal
+
+   path_tif = 'sentinel2.tif'
+   path_output = 'sentinel2_cog.tif'
+
+   ds = gdal.Open(path)
+
+   ds = cog.converter.convert2blocksize(ds, path_output)
+   ds.FlushCache()
+

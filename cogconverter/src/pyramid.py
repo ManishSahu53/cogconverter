@@ -1,6 +1,6 @@
 import gdal
 import osgeo
-from cogconverter import config as default_config
+from cogconverter.config import default_config
 
 
 # Creating pyramids/overviews

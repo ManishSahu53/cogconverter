@@ -7,11 +7,11 @@ from setuptools import find_packages, setup
 with open('README.rst', encoding='utf-8') as f:
     long_description = f.read()
 
-with open('cogconverter/__init__.py', encoding='utf-8') as f:
-    version = re.search(r"__version__\s*=\s*'(\S+)'", f.read()).group(1)
+with open('cogconverter/VERSION') as version_file:
+    __version__=version_file.read().strip()
 
 setup(name='cogconverter',
-      version=version,
+      version=__version__,
       description="Utility to convert raster dataset to Cloud Optimized GeoTIFFs",
       long_description=long_description,
       classifiers=[
@@ -32,7 +32,6 @@ setup(name='cogconverter',
       install_requires=open('requirements.txt').read().splitlines(),
       extras_require={
           'dev': [
-              'gdal',
               'numpy',
               'argparse',
               'tqdm'

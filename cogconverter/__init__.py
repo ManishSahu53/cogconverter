@@ -1,12 +1,10 @@
 import logging
 import os
 
-from cogconverter.config import config
+from cogconverter.config import default_config
 from cogconverter.config import logging_config
-from cogconverter.converter import converter
-from cogconverter.validator import validator
-
-
+import cogconverter.validator
+import  cogconverter.converter
 
 
 # Configure logger for use in package
@@ -16,5 +14,5 @@ logger.addHandler(logging_config.get_console_handler())
 logger.propagate = False
 
 
-with open('VERSION') as version_file:
+with open('cogconverter/VERSION') as version_file:
     __version__=version_file.read().strip()
