@@ -1,170 +1,14 @@
-import sys
 from osgeo import gdal
 import argparse
-import converter
 
-import requests
-import logging
 import os
+import sys
 
 import osr
 import json
 import utm
 import time
 import datetime
-from shutil import copy2
-
-start_time = time.time()
-
-
-# Check directory
-def checkdirs(output_folder):
-    if not os.path.exists(output_folder):
-        os.makedirs(os.path.relpath(output_folder))
-
-
-# Generate metadata
-def get_metadata(payload, processedDir):
-
-    # saving to JSON
-    def tojson(dictA, file_json):
-        with open(file_json, 'w') as f:
-            json.dump(dictA, f, indent=4, separators=(',', ': '))
-
-    # EPSG Code to Zone number
-    def code2zone(epsg_code):
-        epsg_code = int(epsg_code)
-        last = int(repr(epsg_code)[-1])
-        sec_last = int(repr(epsg_code)[-2])
-        zone = sec_last*10 + last
-        return zone
-
-    # Get EPSG code
-    def get_code(dataset):
-        proj = osr.SpatialReference(wkt=dataset.GetProjection())
-        return proj.GetAttrValue('AUTHORITY', 1)
-
-    # Get Bounding Box
-    def GetExtent(ds, row, col):
-        gt = ds.GetGeoTransform()
-
-        originX = gt[0]
-        originY = gt[3]
-        px_width = gt[1]
-        px_height = gt[5]
-
-        epsg = get_code(ds)
-
-        max_x = originX + col*px_width
-        max_y = originY
-        min_x = originX
-
-        if px_height < 0:
-            # Since value of height is negative
-            min_y = originY + row*px_height
-
-        if px_height > 0:
-            # Since value of height is negative
-            min_y = originY - row*px_height
-
-    #    if int(epsg) != 4326:
-    #        zone = code2zone(epsg)
-    #        mini = utm.to_latlon(min_x, min_y, zone, zone_letter='N')
-    #        maxi = utm.to_latlon(max_x, max_y, zone, zone_letter='N')
-
-    #    else:
-        mini = [min_y, min_x]
-        maxi = [max_y, max_x]
-
-        return [mini[1], mini[0], maxi[1], maxi[0]]
-
-    # Extracting metadata
-    def extract(payload):
-        metadata = {}
-        ds_geo = gdal.Warp('', payload, dstSRS='EPSG:4326', format='VRT')
-
-        ds = gdal.Open(payload)
-
-        num_band = ds.RasterCount
-
-        # Checking array type
-        banddata = ds.GetRasterBand(1)
-        arr = banddata.ReadAsArray(0, 0, 1, 1)
-
-        # Dimensions
-        col = ds.RasterXSize
-        row = ds.RasterYSize
-
-        # Tranformation settings
-        geotransform = ds.GetGeoTransform()
-
-        # Getting Nodata values
-        no_data = ds.GetRasterBand(1).GetNoDataValue()
-
-        # Get band statistics
-        bands = {}
-        for i in range(num_band):
-            dic = {}
-            data = []
-            data = ds.GetRasterBand(i+1).GetStatistics(0, 1)
-            dic['min'] = data[0]
-            dic['max'] = data[1]
-            dic['mean'] = data[2]
-            dic['std'] = data[3]
-            bands['b%s' % (i)] = dic
-
-        # Origin and pixel length
-        originX = geotransform[0]
-        originY = geotransform[3]
-        px_width = geotransform[1]
-        px_height = geotransform[5]
-
-        # Generate bbox in latitude and longitude only
-        bbox = GetExtent(ds_geo, row, col)
-
-        # Getting time information
-        try:
-            import ntplib
-            x = ntplib.NTPClient()
-            timestamp = str(datetime.datetime.utcfromtimestamp(
-                x.request('europe.pool.ntp.org').tx_time))
-            time_source = 'internet'
-        except:
-            print('Could not sync with time server. Taking Local TimeStamp')
-            timestamp = str(datetime.datetime.utcnow()).split('.')[0]
-            time_source = 'local'
-
-        # Generating metadata
-        metadata['bbox'] = bbox
-        metadata['numband'] = num_band
-        metadata['epsgcode'] = get_code(ds)
-        metadata['originx'] = originX
-        metadata['originy'] = originY
-        metadata['pixelwidth'] = px_width
-        metadata['pixelheight'] = px_height
-        metadata['size'] = [col, row]
-        metadata['nodata'] = no_data
-        metadata['datatype'] = str(arr[0][0].dtype)
-        metadata['file'] = os.path.basename(payload)
-        metadata['time'] = timestamp
-        metadata['timesource'] = time_source
-        metadata['cogeo'] = True
-        metadata['url'] = payload
-        metadata['statistics'] = bands
-
-        return metadata
-
-    # Running main function
-    metadata = extract(payload)
-
-    # Creating directory if not present
-    checkdirs(processedDir)
-
-    # Output file
-    output_file = os.path.join(processedDir, 'metadata.json')
-    tojson(metadata, output_file)
-
-####################################################################
 
 
 class ValidateCloudOptimizedGeoTIFFException(Exception):
@@ -337,30 +181,24 @@ def main():
             print('The following warnings were found:')
             for warning in warnings:
                 print(' - ' + warning)
-            print('')
-            print('Converting to cloud optimized GeoTIFF')
-            converter.convert2blocksize(filename, path_output)
+
+            print('Convert to cloud optimized GeoTIFF')
 
         elif errors:
             print('%s is NOT a valid cloud optimized GeoTIFF.' % filename)
             print('The following errors were found:')
             for error in errors:
                 print(' - ' + error)
-            print('')
-            print('Converting to cloud optimized GeoTIFF')
-            converter.convert2blocksize(filename, path_output)
-            ret = 1
+
+            print('Convert to cloud optimized GeoTIFF')
         else:
             print('%s is a valid cloud optimized GeoTIFF' % filename)
-            copy2(filename, path_output)
 
     except ValidateCloudOptimizedGeoTIFFException as e:
         print('%s is NOT a valid cloud optimized GeoTIFF : %s' %
               (filename, str(e)))
 
-        print('Converting to cloud optimized GeoTIFF')
-        converter.convert2blocksize(filename, path_output)
-        ret = 1
+        print('Convert to cloud optimized GeoTIFF')
 
     return ret
 
@@ -376,7 +214,6 @@ if __name__ == '__main__':
                         default=None,
                         required=False)
 
-
     args = parser.parse_args()
     path_input = args.payload
     path_output = args.output
@@ -389,7 +226,6 @@ if __name__ == '__main__':
     # Converting starts here
     try:
         main()
-        print('Success: Completed')
     except Exception as e:
         raise('Error: Unable to validate and convert. %s' % e)
     sys.exit()

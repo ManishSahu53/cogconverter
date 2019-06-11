@@ -1,5 +1,6 @@
 ## Folders
 skip/
+data/
 
 ## python
 *.pyc

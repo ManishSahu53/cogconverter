@@ -1,6 +1,7 @@
 gdal
 numpy
 tqdm
-aragparse
 utm
 osr
+osgeo
+logging

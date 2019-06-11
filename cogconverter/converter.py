@@ -1,9 +1,11 @@
+import osgeo
 import gdal
 import numpy as np
 import os
 import sys
 from tqdm import tqdm
 import argparse
+import config.config as default_config
 
 
 """
@@ -11,25 +13,23 @@ import argparse
 -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 --config GDAL_TIFF_OVR_BLOCKSIZE 512
 """
 
+
 class raster(object):
 
-    def __init_(self, input_ds, output_ds):
+    def __init__(self, ds):
         self.intermediate_format = 'VRT'
-        self.input_ds = input_ds
-        self.output_ds = output_ds
+        self.ds = ds
+        self.config()
 
     def config(self):
-        self.ds = self.input_ds
-
         if self.ds is None:
             raise('Input file provided %s cannot be loaded' %
-                  (self.input_ds))
-            sys.exit()
+                  (self.ds))
 
         self.no_data = self.ds.GetRasterBand(1).GetNoDataValue()
 
         if self.no_data is None:
-            self.no_data = -9999
+            self.no_data = default_config.NO_DATA
             # Reading tif dataset
             # ds = gdal.Open(file)
 
@@ -38,7 +38,7 @@ class raster(object):
             self.compression = self.ds.GetMetadata(
                 'IMAGE_STRUCTURE')['COMPRESSION']
         except:
-            self.compression = 'LZW'
+            self.compression = default_config.COMPRESS
 
         if self.compression.upper() == 'YCbCr JPEG'.upper():
             self.compression = 'JPEG'
@@ -73,13 +73,13 @@ class raster(object):
 
     def dtype_conversion(self):
         """
-        GDT_Byte 	    Eight bit unsigned integer
-        GDT_UInt16 	    Sixteen bit unsigned integer
-        GDT_Int16 	    Sixteen bit signed integer
-        GDT_UInt32 	    Thirty two bit unsigned integer
-        GDT_Int32 	    Thirty two bit signed integer
-        GDT_Float32 	Thirty two bit floating point
-        GDT_Float64 	Sixty four bit floating point
+        GDT_Byte 	    8 bit unsigned integer
+        GDT_UInt16 	    16 bit unsigned integer
+        GDT_Int16 	    16 bit signed integer
+        GDT_UInt32 	    32 bit unsigned integer
+        GDT_Int32 	    32 bit signed integer
+        GDT_Float32 	32 bit floating point
+        GDT_Float64 	64 bit floating point
         """
         # Float 64
         if self.dtype == np.dtype(np.float64):
@@ -121,24 +121,15 @@ class raster(object):
         else:
             print('Overviews already generated. Thus skipping!')
 
-
-def gdal_addo(raster, dataset):
-    # Setting no data value
-    for i in range(dataset.RasterCount):
-        band = dataset.GetRasterBand(i+1)
-        band.SetNoDataValue(raster.no_data)
-
-    # 0 = read-only, 1 = read-write
-    overviews = dataset.GetRasterBand(1).GetOverviewCount()
-    if overviews == 0:
-        gdal.SetConfigOption('COMPRESS_OVERVIEW', 'LZW')
-        dataset.BuildOverviews("NEAREST", [2, 4, 8, 16, 32, 64])
-        print('Completed: Generating overviews')
-    else:
-        print('Overviews already generated. Thus skipping!')
+# Class over
+######################################################################
 
 
 def write_blockwise(input_raster, output_raster):
+
+    assert isinstance(input_raster, raster), __name__ + \
+        'Excepted raster class type'
+
     dimension = input_raster.num_band
 
     for num_band in range(dimension):
@@ -173,16 +164,17 @@ def checkdirs(path):
         os.makedirs(path)
 
 
-def convert2blocksize(path_input, path_output=None):
-    '''
+def convert2blocksize(ds, path_output):
+    '''sinstance(ds, osgeo.gdal.Dataset)
     path_input is input file name
     path_output is output file name
     '''
-    blocksize = 256
+    assert isinstance(ds, osgeo.gdal.Dataset), __name__ + \
+        'Excepted osgeo.gdal class type'
 
-    r = raster()
-    r.path_input = path_input
-    r.path_blockoutput = path_output
+    blocksize = default_config.BLOCKSIZE
+
+    r = raster(ds)
     # Loading cnfiguration
     r.config()
 
@@ -196,17 +188,18 @@ def convert2blocksize(path_input, path_output=None):
 
     # Checking alpha bands
     for i in range(r.num_band):
-        present = 0
         band = r.ds.GetRasterBand(i+1)
         band_type = band.GetColorInterpretation()
+
         if int(band_type) == 6:
-            present = 1
             print('alpha present')
+        else:
+            print('alpha band not present')
 
         # Creating tifs
         print('Processing: Creating tiff dataset')
         driver = gdal.GetDriverByName('Gtiff')
-        dataset = driver.CreateCopy(r.path_blockoutput,
+        dataset = driver.CreateCopy(path_output,
                                     r.ds, 0,
                                     ['NUM_THREADS=ALL_CPUS',
                                      'COMPRESS=%s' % (r.compression),
@@ -216,6 +209,7 @@ def convert2blocksize(path_input, path_output=None):
                                      'BLOCKYSIZE=%d' % (blocksize),
                                      'COPY_SRC_OVERVIEWS=YES'])
 
+    return dataset
     # driver = gdal.GetDriverByName('Gtiff')
     # dataset = driver.Create(r.path_blockoutput,
     #                         r.col, r.row, r.num_band,
@@ -246,16 +240,33 @@ def convert2blocksize(path_input, path_output=None):
     # # Building overviews of output dataset, this will remove COG nature of TIF
     # print('Processing: Building overviews of output dataset')
     # gdal_addo(r, dataset)
-    dataset.FlushCache()
+    # dataset.FlushCache()
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-P', '--payload',
-                        help='Pass input file', required=True)
+    parser.add_argument('-p', '--payload',
+                        help='Pass input file',
+                        required=True)
+
+    parser.add_argument('-o', '--output',
+                        help='Pass output file',
+                        default=None,
+                        required=False)
 
     args = parser.parse_args()
     path_input = args.payload
-    convert2blocksize(path_input)
+    path_output = args.output
+
+    # Reading raster
+    ds = gdal.Open(path_input, 1)
+
+    ds = convert2blocksize(ds, path_output)
+    try:
+        ds.FlushCache()
+        print('Succes: Completed')
+    except Exception as e:
+        raise('Error: Unable to save to %s %s'% (path_output, e))
+
     sys.exit()

@@ -3,6 +3,10 @@ import os
 
 from cogconverter.config import config
 from cogconverter.config import logging_config
+from cogconverter.converter import converter
+from cogconverter.validator import validator
+
+
 
 
 # Configure logger for use in package
