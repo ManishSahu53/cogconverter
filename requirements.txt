@@ -2,3 +2,5 @@ gdal
 numpy
 tqdm
 aragparse
+utm
+osr

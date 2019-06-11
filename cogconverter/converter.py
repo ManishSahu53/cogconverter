@@ -4,7 +4,6 @@ import os
 import sys
 from tqdm import tqdm
 import argparse
-from src import create_alpha
 
 
 """
@@ -12,17 +11,19 @@ from src import create_alpha
 -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 --config GDAL_TIFF_OVR_BLOCKSIZE 512
 """
 
-class raster():
-    intermediate_format = 'VRT'
-    path_input = ''
-    path_output = ''
+class raster(object):
+
+    def __init_(self, input_ds, output_ds):
+        self.intermediate_format = 'VRT'
+        self.input_ds = input_ds
+        self.output_ds = output_ds
 
     def config(self):
-        self.ds = gdal.Open(self.path_input, 1)
+        self.ds = self.input_ds
 
         if self.ds is None:
-            print('Input file provided %s cannot be loaded' %
-                  (self.path_input))
+            raise('Input file provided %s cannot be loaded' %
+                  (self.input_ds))
             sys.exit()
 
         self.no_data = self.ds.GetRasterBand(1).GetNoDataValue()
@@ -177,14 +178,6 @@ def convert2blocksize(path_input, path_output=None):
     path_input is input file name
     path_output is output file name
     '''
-    if path_output is None:
-        path_output = os.path.join(path_input, 'index.tif')
-
-    checkdirs(os.path.dirname(path_output))
-
-    print('Input file: %s' % (path_input))
-    print('Output file: %s' % (path_output))
-
     blocksize = 256
 
     r = raster()
@@ -195,7 +188,7 @@ def convert2blocksize(path_input, path_output=None):
 
     # Checking for projection system
     if len(r.geoprojection) == 0:
-        daymark.daymark.logError('TIF not georeferenced', id, redisInstance)
+        raise('Error: GeoProjection of input file is not defined')
 
     # Building overviews
     print('Processing: Building overviews')
@@ -210,42 +203,6 @@ def convert2blocksize(path_input, path_output=None):
             present = 1
             print('alpha present')
 
-    if present != 1 and band.DataType == 1 and r.num_band == 3:
-        print('alpha band not preset. Adding aplha band...')
-        try:
-            path_alpha = create_alpha.create_alpha(r)
-        except Exception as e:
-            daymark.daymark.logError(e, id, redisInstance)
-
-        # Creating tifs
-        alpha = raster()
-        alpha.path_input = path_alpha
-        alpha.path_blockoutput = path_output
-        # Loading cnfiguration
-        alpha.config()
-
-        # Checking for projection system
-        if len(alpha.geoprojection) == 0:
-            daymark.daymark.logError(
-                'TIF not georeferenced', id, redisInstance)
-
-        # Building overviews
-        print('Processing: Building overviews')
-        alpha.gdal_addo()
-
-        print('Processing: Creating tiff dataset')
-        driver = gdal.GetDriverByName('Gtiff')
-        dataset = driver.CreateCopy(alpha.path_blockoutput,
-                                    alpha.ds, 0,
-                                    ['NUM_THREADS=ALL_CPUS',
-                                     'COMPRESS=%s' % (r.compression),
-                                     'BIGTIFF=YES',
-                                     'TILED=YES',
-                                     'BLOCKXSIZE=%d' % (blocksize),
-                                     'BLOCKYSIZE=%d' % (blocksize),
-                                     'COPY_SRC_OVERVIEWS=YES'])
-
-    else:
         # Creating tifs
         print('Processing: Creating tiff dataset')
         driver = gdal.GetDriverByName('Gtiff')
@@ -258,6 +215,7 @@ def convert2blocksize(path_input, path_output=None):
                                      'BLOCKXSIZE=%d' % (blocksize),
                                      'BLOCKYSIZE=%d' % (blocksize),
                                      'COPY_SRC_OVERVIEWS=YES'])
+
     # driver = gdal.GetDriverByName('Gtiff')
     # dataset = driver.Create(r.path_blockoutput,
     #                         r.col, r.row, r.num_band,
@@ -285,7 +243,7 @@ def convert2blocksize(path_input, path_output=None):
     No Need to build overviews of output raster. It will remove COG properties from TIF
     '''
 
-    # # Building overviews of output dataset
+    # # Building overviews of output dataset, this will remove COG nature of TIF
     # print('Processing: Building overviews of output dataset')
     # gdal_addo(r, dataset)
     dataset.FlushCache()

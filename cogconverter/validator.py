@@ -6,17 +6,7 @@ import converter
 import requests
 import logging
 import os
-import errno
-import boto3
-import botocore
-from daymark import daymark
-# from src import get_data
-import subprocess
-import shutil
 
-import requests
-import zipfile
-from requests_toolbelt.multipart.encoder import MultipartEncoder
 import osr
 import json
 import utm
@@ -24,83 +14,7 @@ import time
 import datetime
 from shutil import copy2
 
-
-redisEndPoint = daymark.daymark.getEnvVar("REDIS_ENDPOINT")
-global redisInstance
-redisInstance = daymark.daymark.init(redisEndPoint)
-global id
-id = daymark.daymark.getEnvVar("JOBID")
-global s3Resource
-s3Resource = boto3.resource('s3')
-global s3
-s3 = boto3.client('s3')
-
-####################################################################
-
 start_time = time.time()
-
-
-def uploadFolderToS3(outputBucket, localDirectory, outputKey):
-
-    # local_directory, bucket, destination = sys.argv[1:4]
-    try:
-        client = boto3.client('s3')
-        bucket = outputBucket
-
-        # enumerate local files recursively
-
-        for root, dirs, files in os.walk(localDirectory):
-
-            for filename in files:
-
-                # construct the full local path
-                localPath = os.path.join(root, filename)
-
-                # construct the full Dropbox path
-                relativePath = os.path.relpath(localPath, localDirectory)
-
-                KEY = outputKey + relativePath
-
-                # relative_path = os.path.relpath(os.path.join(root, filename))
-
-                print('Searching "%s" in "%s"' % (KEY, bucket))
-                try:
-                    client.head_object(Bucket=bucket, Key=KEY)
-                    print("Path found on S3! Skipping %s..." % KEY)
-
-                except:
-                    print("Uploading %s..." % KEY)
-                    client.upload_file(localPath, bucket, KEY)
-
-    except Exception as e:
-        daymark.daymark.logError(e, id, redisInstance)
-
-
-def downloadFromS3(inputBucket, key, orthoName):
-
-    try:
-        BUCKET_NAME = inputBucket
-        KEY = key
-        filepath = "/lighthouse/" + orthoName
-        dirname = os.path.dirname(filepath)
-        print("Orthoname->" + orthoName)
-        print("Key-> " + str(key))
-        print("filepath-> " + filepath)
-        print("dirname-> " + os.path.dirname(filepath))
-
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-
-        s3 = boto3.resource('s3')
-        try:
-            s3.Bucket(BUCKET_NAME).download_file(KEY, filepath)
-        except botocore.exceptions.ClientError as e:
-            if(e.response['Error']['Code'] == "404"):
-                print("The object does not exist.")
-            else:
-                raise
-    except Exception as e:
-        daymark.daymark.logError(e, id, redisInstance)
 
 
 # Check directory
@@ -414,7 +328,7 @@ def main():
     filename = path_input
 
     if filename is None:
-        return sys.exit()
+        raise('Error: No input file is given. Exiting...')
 
     try:
         ret = 0
@@ -453,117 +367,29 @@ def main():
 
 if __name__ == '__main__':
 
-    # parser = argparse.ArgumentParser()
-
-    # parser.add_argument('-P', '--payload',
-    #                     help='Pass input file', required=True)
-
-    # args = parser.parse_args()
-    # path_input = args.payload
-    # main()
-    # sys.exit()
     parser = argparse.ArgumentParser()
-    parser.add_argument('-i', '--inputBucket',
-                        help='add the input bucket', required=True)
-    parser.add_argument('-o', '--outputBucket',
-                        help='add the output bucket', required=True)
-    parser.add_argument('-k', '--key', help='add key', required=True)
 
-    inputBucket = parser.parse_args().inputBucket
-    outputBucket = parser.parse_args().outputBucket
-    key = parser.parse_args().key
+    parser.add_argument('-p', '--payload',
+                        help='Pass input file', required=True)
+    parser.add_argument('-o', '--output',
+                        help='Pass output file',
+                        default=None,
+                        required=False)
 
-    fileDir = './' + os.path.dirname(key)
-    print("File Path ->" + fileDir)
 
-    try:
-        os.makedirs(fileDir)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(fileDir):
-            pass
-        else:
-            raise
-        print("Workspace Created ->" + fileDir)
+    args = parser.parse_args()
+    path_input = args.payload
+    path_output = args.output
 
-    # orthoName is key so as to avoid TIF having same name
-    orthoName = key
-    s3.put_object(Bucket=outputBucket, Key=(key+'/'))
-    outputKey = key + '/'
-    print("input bucket received-> " + inputBucket)
-    print("output bucket received-> " + outputBucket)
-    print("key received-> " + key)
-
-    if orthoName.endswith('.vrt'):
-        print('VRT file found')
-        downloadFromS3(inputBucket, key, orthoName)
-        print('File downloading complete')
-
-    elif orthoName.endswith('.tif'):
-        print('TIFF file found')
-        downloadFromS3(inputBucket, key, orthoName)
-        print('File downloading complete')
-
-    elif orthoName.endswith('.tiff'):
-        print('TIFF file found')
-        downloadFromS3(inputBucket, key, orthoName)
-        print('File downloading complete')
-
-    else:
-        daymark.daymark.logError(
-            "File format not supported", id, redisInstance)
-
-    # here we set the progress to 5
-    daymark.daymark.setProgress(id, "5", redisInstance)
-
-    path_input = '/lighthouse/' + orthoName
-
-    if path_input:
-        path_input = '/lighthouse/' + orthoName
-        print('Input file is : ' + path_input)
-
-        # Path output
+    if path_output is None:
         path_output = os.path.join(os.path.dirname(path_input), 'index.tif')
-        print('Output file is : ' + path_output)
 
-        checkdirs(os.path.dirname(path_output))
-        try:
-            main()
-            daymark.daymark.setProgress(id, '95', redisInstance)
-            print("Processed Data Directory -> " +
-                  os.path.dirname(path_output))
-        except Exception as e:
-            daymark.daymark.logError(e, id, redisInstance)
-    else:
-        daymark.daymark.logError("No input given", id, redisInstance)
+    print('Output file is : ' + path_output)
 
+    # Converting starts here
     try:
-        get_metadata(path_output, os.path.dirname(path_output))
-        print("Metadata Extraction Completed")
-
+        main()
+        print('Success: Completed')
     except Exception as e:
-        os.remove('/lighthouse/' + orthoName)
-        shutil.rmtree(path_output)
-        daymark.daymark.logError(e, id, redisInstance)
-
-    try:
-        # uploadFolderToS3(outputBucket, processedDir, outputKey)
-        # remove input Tif first then upload data
-        if os.path.isfile('/lighthouse/' + orthoName):
-            os.remove('/lighthouse/' + orthoName)
-
-        s3Path = "s3://" + outputBucket + "/" + outputKey
-        subprocess.call(
-            ["aws", "s3", "sync", os.path.dirname(path_output), s3Path])
-
-        print("Files successfully uploaded")
-        daymark.daymark.setProgress(id, "100", redisInstance)
-
-        # removing directories
-        shutil.rmtree(path_output, ignore_errors=True)
-
-        daymark.daymark.logSuccessful(
-            "Input file successfully Processed", id, redisInstance)
-    except Exception as e:
-        os.remove('/lighthouse/' + orthoName)
-        shutil.rmtree(path_output)
-        daymark.daymark.logError(e, id, redisInstance)
+        raise('Error: Unable to validate and convert. %s' % e)
+    sys.exit()

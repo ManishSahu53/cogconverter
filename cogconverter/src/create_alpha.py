@@ -1,23 +1,9 @@
 import gdal
 import numpy as np
 import os
+from cogconverter.src.pyramid import pyramid
 
-
-def gdal_addo(dataset):
-    # Setting no data value
-    for i in range(dataset.RasterCount):
-        band = dataset.GetRasterBand(i+1)
-
-    # 0 = read-only, 1 = read-write
-    overviews = dataset.GetRasterBand(1).GetOverviewCount()
-    if overviews == 0:
-        gdal.SetConfigOption('COMPRESS_OVERVIEW', 'LZW')
-        dataset.BuildOverviews("NEAREST", [2, 4, 8, 16, 32, 64])
-        print('Completed: Generating overviews')
-    else:
-        print('Overviews already generated. Thus skipping!')
-
-
+# Remappping array to
 def remap_array(arr):
     """
     Remapping [4, 256,256] to [256,256, 4]
@@ -84,7 +70,9 @@ def create_alpha(raster):
 
     # Creating alpha pyramids
     print('Generating alpha Overviews')
-    gdal_addo(dataset)
+    addo = pyramid(dataset)
+    addo.gdal_addo()
+    
     print('Saving to Disk')
     dataset.FlushCache()
     dataset = None

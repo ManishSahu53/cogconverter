@@ -1,94 +1,29 @@
-import sys
-import argparse
-import requests
-import logging
 import os
-import errno
-import boto3
-import botocore
-from daymark import daymark
-import zipfile
-import subprocess
-import shutil
-from requests_toolbelt.multipart.encoder import MultipartEncoder
 import osr
 import json
 import utm
-import time
+import gdal
 import datetime
 
-# redisEndPoint = daymark.daymark.getEnvVar("REDIS_ENDPOINT")
-# global redisInstance
 
+# Metadata class
+class Metadata(object):
 
-def uploadFolderToS3(outputBucket, localDirectory, outputKey):
-
-    # local_directory, bucket, destination = sys.argv[1:4]
-    try:
-        client = boto3.client('s3')
-        bucket = outputBucket
-
-        # enumerate local files recursively
-
-        for root, dirs, files in os.walk(localDirectory):
-
-            for filename in files:
-
-                # construct the full local path
-                localPath = os.path.join(root, filename)
-
-                # construct the full Dropbox path
-                relativePath = os.path.relpath(localPath, localDirectory)
-
-                KEY = outputKey + relativePath
-
-                # relative_path = os.path.relpath(os.path.join(root, filename))
-
-                print('Searching "%s" in "%s"' % (KEY, bucket))
-                try:
-                    client.head_object(Bucket=bucket, Key=KEY)
-                    print("Path found on S3! Skipping %s..." % KEY)
-
-                except:
-                    print("Uploading %s..." % KEY)
-                    client.upload_file(localPath, bucket, KEY)
-
-    except Exception as e:
-        daymark.daymark.logError(e, id, redisInstance)
-
-
-def downloadFromS3(inputBucket, key, orthoName):
-
-    try:
-        BUCKET_NAME = inputBucket
-        KEY = key
-        filepath = "/lighthouse/" + orthoName
-        s3 = boto3.resource('s3')
-        try:
-            s3.Bucket(BUCKET_NAME).download_file(KEY, filepath)
-        except botocore.exceptions.ClientError as e:
-            if(e.response['Error']['Code'] == "404"):
-                print("The object does not exist.")
-            else:
-                raise
-    except Exception as e:
-        daymark.daymark.logError(e, id, redisInstance)
-
-
-def get_metadata(payload, processedDir):
+    def __init__(self, payload):
+        self.payload = payload
 
     # Check directory
-    def checkdirs(output_folder):
+    def checkdirs(self, output_folder):
         if not os.path.exists(output_folder):
             os.makedirs(os.path.relpath(output_folder))
 
     # saving to JSON
-    def tojson(dictA, file_json):
+    def tojson(self, dictA, file_json):
         with open(file_json, 'w') as f:
             json.dump(dictA, f, indent=4, separators=(',', ': '))
 
     # EPSG Code to Zone number
-    def code2zone(epsg_code):
+    def code2zone(self, epsg_code):
         epsg_code = int(epsg_code)
         last = int(repr(epsg_code)[-1])
         sec_last = int(repr(epsg_code)[-2])
@@ -96,12 +31,12 @@ def get_metadata(payload, processedDir):
         return zone
 
     # Get EPSG code
-    def get_code(dataset):
+    def get_code(self, dataset):
         proj = osr.SpatialReference(wkt=dataset.GetProjection())
         return proj.GetAttrValue('AUTHORITY', 1)
 
     # Get Bounding Box
-    def GetExtent(ds, row, col):
+    def GetExtent(self, ds, row, col):
         gt = ds.GetGeoTransform()
 
         originX = gt[0]
@@ -109,7 +44,7 @@ def get_metadata(payload, processedDir):
         px_width = gt[1]
         px_height = gt[5]
 
-        epsg = get_code(ds)
+        epsg = self.get_code(ds)
 
         max_x = originX + col*px_width
         max_y = originY
@@ -135,11 +70,11 @@ def get_metadata(payload, processedDir):
         return [mini[1], mini[0], maxi[1], maxi[0]]
 
     # Extracting metadata
-    def extract(payload):
+    def extract(self):
         metadata = {}
-        ds_geo = gdal.Warp('', payload, dstSRS='EPSG:4326', format='VRT')
+        ds_geo = gdal.Warp('', self.payload, dstSRS='EPSG:4326', format='VRT')
 
-        ds = gdal.Open(payload)
+        ds = gdal.Open(self.payload)
 
         num_band = ds.RasterCount
 
@@ -164,7 +99,7 @@ def get_metadata(payload, processedDir):
         px_height = geotransform[5]
 
         # Generate bbox in latitude and longitude only
-        bbox = GetExtent(ds_geo, row, col)
+        bbox = self.GetExtent(ds_geo, row, col)
 
         # Getting time information
         try:
@@ -181,7 +116,7 @@ def get_metadata(payload, processedDir):
         # Generating metadata
         metadata['bbox'] = bbox
         metadata['numband'] = num_band
-        metadata['epsgcode'] = get_code(ds)
+        metadata['epsgcode'] = self.get_code(ds)
         metadata['originx'] = originX
         metadata['originy'] = originY
         metadata['pixelwidth'] = px_width
@@ -189,18 +124,8 @@ def get_metadata(payload, processedDir):
         metadata['size'] = [col, row]
         metadata['nodata'] = no_data
         metadata['datatype'] = str(arr[0][0].dtype)
-        metadata['file'] = os.path.basename(payload)
+        metadata['file'] = os.path.basename(self.payload)
         metadata['time'] = timestamp
         metadata['timesource'] = time_source
 
         return metadata
-
-    # Running main function
-    metadata = extract(payload)
-
-    # Creating directory if not present
-    checkdirs(processedDir)
-
-    # Output file
-    output_file = os.path.join(processedDir, 'metadata.json')
-    tojson(metadata, output_file)
