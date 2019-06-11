@@ -4,7 +4,6 @@ import os
 import sys
 from tqdm import tqdm
 import argparse
-from daymark import daymark
 from src import create_alpha
 
 
@@ -12,10 +11,6 @@ from src import create_alpha
 -co TILED=YES -co COMPRESS=JPEG -co PHOTOMETRIC=YCBCR -co COPY_SRC_OVERVIEWS=YES \
 -co BLOCKXSIZE=512 -co BLOCKYSIZE=512 --config GDAL_TIFF_OVR_BLOCKSIZE 512
 """
-redisEndPoint = daymark.daymark.getEnvVar("REDIS_ENDPOINT")
-redisInstance = daymark.daymark.init(redisEndPoint)
-id = daymark.daymark.getEnvVar("JOBID")
-
 
 class raster():
     intermediate_format = 'VRT'

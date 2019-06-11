@@ -1,0 +1,4 @@
+gdal
+numpy
+tqdm
+aragparse
