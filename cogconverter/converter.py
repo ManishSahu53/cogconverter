@@ -187,54 +187,54 @@ def convert2blocksize(ds, path_output):
     r.gdal_addo()
 
     # Creating tifs
-    print('Processing: Creating tiff dataset')
-    driver = gdal.GetDriverByName('Gtiff')
-    try:
-        dataset = driver.CreateCopy(path_output,
-                                    r.ds, 0,
-                                    ['NUM_THREADS=ALL_CPUS',
-                                    'COMPRESS=%s' % (r.compression),
-                                    'BIGTIFF=YES',
-                                    'TILED=YES',
-                                    'BLOCKXSIZE=%d' % (blocksize),
-                                    'BLOCKYSIZE=%d' % (blocksize),
-                                    'COPY_SRC_OVERVIEWS=YES'])
-    except Exception as e:
-        raise('Error: Unable to process %s' % e)
-
-    return dataset
+    # print('Processing: Creating tiff dataset')
     # driver = gdal.GetDriverByName('Gtiff')
-    # dataset = driver.Create(path_output,
-    #                         r.col, r.row, r.num_band,
-    #                         r.dtype_conversion(), ['NUM_THREADS=ALL_CPUS',
-    #                                                'COMPRESS=%s' % (
-    #                                                    r.compression),
-    #                                                'BIGTIFF=YES',
-    #                                                'TILED=YES',
-    #                                                'BLOCKXSIZE=%d' % (
-    #                                                    blocksize),
-    #                                                'BLOCKYSIZE=%d' % (
-    #                                                    blocksize),
-    #                                                'COPY_SRC_OVERVIEWS=YES'])
-    # dataset.SetGeoTransform(r.geotransform)
-    # dataset.SetProjection(r.geoprojection)
+    # try:
+    #     dataset = driver.CreateCopy(path_output,
+    #                                 r.ds, 0,
+    #                                 ['NUM_THREADS=ALL_CPUS',
+    #                                 'COMPRESS=%s' % (r.compression),
+    #                                 'BIGTIFF=YES',
+    #                                 'TILED=YES',
+    #                                 'BLOCKXSIZE=%d' % (blocksize),
+    #                                 'BLOCKYSIZE=%d' % (blocksize),
+    #                                 'COPY_SRC_OVERVIEWS=YES'])
+    # except Exception as e:
+    #     raise('Error: Unable to process %s' % e)
 
-    # ''' 
-    # No need to copy data again. Since we are using CreateCopy() function, it will automatically copy all the datasets
-    # '''
-
-    # # Copying data from input raster to output raster blockwise
-    # write_blockwise(input_raster=r, output_raster=dataset)
-
-    # '''
-    # No Need to build overviews of output raster. It will remove COG properties from TIF
-    # '''
-
-    # # # Building overviews of output dataset, this will remove COG nature of TIF
-    # print('Processing: Building overviews of output dataset')
-    # addo = pyramid.pyramid(dataset)
-    # addo.gdal_addo()
     # return dataset
+    driver = gdal.GetDriverByName('Gtiff')
+    dataset = driver.Create(path_output,
+                            r.col, r.row, r.num_band,
+                            r.dtype_conversion(), ['NUM_THREADS=ALL_CPUS',
+                                                   'COMPRESS=%s' % (
+                                                       r.compression),
+                                                   'BIGTIFF=YES',
+                                                   'TILED=YES',
+                                                   'BLOCKXSIZE=%d' % (
+                                                       blocksize),
+                                                   'BLOCKYSIZE=%d' % (
+                                                       blocksize),
+                                                   'COPY_SRC_OVERVIEWS=YES'])
+    dataset.SetGeoTransform(r.geotransform)
+    dataset.SetProjection(r.geoprojection)
+
+    ''' 
+    No need to copy data again. Since we are using CreateCopy() function, it will automatically copy all the datasets
+    '''
+
+    # Copying data from input raster to output raster blockwise
+    write_blockwise(input_raster=r, output_raster=dataset)
+
+    '''
+    No Need to build overviews of output raster. It will remove COG properties from TIF
+    '''
+
+    # # Building overviews of output dataset, this will remove COG nature of TIF
+    print('Processing: Building overviews of output dataset')
+    addo = pyramid.pyramid(dataset)
+    addo.gdal_addo()
+    return dataset
 
 
 if __name__ == '__main__':
