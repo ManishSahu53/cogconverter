@@ -208,21 +208,11 @@ if __name__ == '__main__':
 
     parser.add_argument('-p', '--payload',
                         help='Pass input file', required=True)
-    parser.add_argument('-o', '--output',
-                        help='Pass output file',
-                        default=None,
-                        required=False)
 
     args = parser.parse_args()
     path_input = args.payload
-    path_output = args.output
 
-    if path_output is None:
-        path_output = os.path.join(os.path.dirname(path_input), 'index.tif')
-
-    print('Output file is : ' + path_output)
-
-    # Converting starts here
+    # Validator starts here
     try:
         main()
     except Exception as e:
