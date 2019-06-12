@@ -209,6 +209,7 @@ def convert2blocksize(ds, path_output):
     except Exception as e:
         raise('Error: Unable to process %s' % e)
 
+    print('Success: Creating tiff dataset completed')
     return dataset
     # driver = gdal.GetDriverByName('Gtiff')
     # dataset = driver.Create(path_output,
@@ -241,6 +242,7 @@ def convert2blocksize(ds, path_output):
     # print('Processing: Building overviews of output dataset')
     # addo = pyramid.pyramid(dataset)
     # addo.gdal_addo()
+    # print('Success: Creating tiff dataset completed')
     # return dataset
 
 
@@ -261,8 +263,8 @@ if __name__ == '__main__':
     path_output = args.output
 
     # Standard parameters
-    coordinate = 'EPSG:4326'
-    intermediate_format = 'VRT'
+    coordinate = default_config.EPSG_CRS
+    intermediate_format = default_config.INTERMEDIATE_FORMAT
 
     # Reading raster
     # ds = gdal.Open(path_input)
@@ -276,7 +278,7 @@ if __name__ == '__main__':
         print('Flushing')
         ds1.FlushCache()
         ds1 = None
-        print('Success: Completed')
+        print('Success: Process Completed')
     except Exception as e:
         raise('Error: Unable to save to %s %s' % (path_output, e))
 

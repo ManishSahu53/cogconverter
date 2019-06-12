@@ -31,9 +31,25 @@ import gdal
 path_tif = 'sentinel2.tif'
 path_output = 'sentinel2_cog.tif'
 
+coordinate = 'EPSG:4326'
+intermediate_foramt = 'VRT'
+
+# If data is in TIF format
 ds = gdal.Open(path)
 
-ds = cog.converter.convert2blocksize(ds, path_output)
-ds.FlushCache()
+<!-- If data is in another format, JP2 and other format have litte unknown issues, so we are following this pipeline to convert is into first VRT then procesing. -->
 
+ds = gdal.Warp('', path, dstSRS=coordinate, format=intermediate_foramt)
+
+ds1 = cog.converter.convert2blocksize(ds, path_output)
+ds1.FlushCache()
+ds1 = None
+ds = None
+```
+
+You can also run it as following.
+```
+python converter.py -p data/non_cog.tif -o data/cog.tif
+
+python validator.py -p data/cog.tif
 ```
