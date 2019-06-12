@@ -212,6 +212,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
     path_input = args.payload
 
+    if not os.path.exists(path_input):
+        raise('Error: File not Found')
+    
     # Validator starts here
     try:
         main()

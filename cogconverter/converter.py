@@ -268,14 +268,16 @@ if __name__ == '__main__':
 
     # Reading raster
     # ds = gdal.Open(path_input)
-
+    if not os.path.exists(path_input):
+        raise('Error: File not found')
+    
     ds = gdal.Warp('', path_input, dstSRS=coordinate,
               format=intermediate_format)
 
     ds1 = convert2blocksize(ds, path_output)
     ds = None
     try:
-        print('Flushing')
+        print('Processing: Flushing')
         ds1.FlushCache()
         ds1 = None
         print('Success: Process Completed')
